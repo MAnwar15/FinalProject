@@ -21,7 +21,7 @@ public class XRLever : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseIn
 
     public bool Value { get; private set; } = false;
 
-    private UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor selectInteractor = null;
+    private UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor selectInteractor = null;
 
     private void Start()
     {
@@ -47,7 +47,7 @@ public class XRLever : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseIn
 
     private void StartGrab(SelectEnterEventArgs eventArgs)
     {
-        selectInteractor = eventArgs.interactorObject as UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor;
+        selectInteractor = eventArgs.interactorObject;
     }
 
     private void EndGrab(SelectExitEventArgs eventArgs)
@@ -82,8 +82,9 @@ public class XRLever : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseIn
 
     private void ApplyValue(SelectExitEventArgs eventArgs)
     {
-        var interactor = eventArgs.interactorObject as UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor;
+        UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor interactor = eventArgs.interactorObject;
         bool isOn = InOnPosition(interactor.transform.position);
+
         FindSnapDirection(isOn);
         SetValue(isOn);
     }

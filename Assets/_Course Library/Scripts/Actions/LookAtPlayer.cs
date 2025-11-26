@@ -1,10 +1,9 @@
-﻿using UnityEngine;
+﻿using Unity.XR.CoreUtils;
+using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
-using Unity.XR.CoreUtils;
-
 
 /// <summary>
-/// Make the object look at the xr rig's camera
+/// Make the object look at the XR Origin's camera
 /// </summary>
 public class LookAtPlayer : MonoBehaviour
 {

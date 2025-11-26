@@ -1,7 +1,5 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
-
 
 
 /// <summary>
@@ -15,9 +13,7 @@ public class ToggleRay : MonoBehaviour
     public bool forceToggle = false;
 
     [Tooltip("The direct interactor that's switched to")]
-
-    public GameObject nearFarInteractor;
-    //public UnityEngine.XR.Interaction.Toolkit.Interactors.XRDirectInteractor directInteractor = null;
+    public UnityEngine.XR.Interaction.Toolkit.Interactors.XRDirectInteractor directInteractor = null;
 
     private UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor rayInteractor = null;
     private bool isSwitched = false;
@@ -25,12 +21,7 @@ public class ToggleRay : MonoBehaviour
     private void Awake()
     {
         rayInteractor = GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor>();
-        SwitchInteractors(false); // moved to here
-    }
-
-    private void Start()
-    {
-        //SwitchInteractors(false);
+        SwitchInteractors(false);
     }
 
     public void ActivateRay()
@@ -48,15 +39,14 @@ public class ToggleRay : MonoBehaviour
     private bool TouchingObject()
     {
         List<UnityEngine.XR.Interaction.Toolkit.Interactables.IXRInteractable> targets = new List<UnityEngine.XR.Interaction.Toolkit.Interactables.IXRInteractable>();
-        //directInteractor.GetValidTargets(targets);
+        directInteractor.GetValidTargets(targets);
         return (targets.Count > 0);
     }
-
 
     private void SwitchInteractors(bool value)
     {
         isSwitched = value;
         rayInteractor.enabled = value;
-        nearFarInteractor.SetActive(!value);
+        directInteractor.enabled = !value;
     }
 }

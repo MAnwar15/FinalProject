@@ -34,7 +34,7 @@ public class XRJoystick : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBas
     public ValueChangeEvent OnYValueChange = new ValueChangeEvent();
 
     public Vector2 Value { get; private set; } = Vector2.zero;
-    private UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor selectInteractor = null;
+    private UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor selectInteractor = null;
 
     private Vector3 initialPosition = Vector3.zero;
 
@@ -57,8 +57,7 @@ public class XRJoystick : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBas
 
     private void StartGrab(SelectEnterEventArgs eventArgs)
     {
-        selectInteractor = eventArgs.interactorObject as UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor;
-
+        selectInteractor = eventArgs.interactorObject;
         initialPosition = ConvertToLocal(selectInteractor.transform.position);
     }
 

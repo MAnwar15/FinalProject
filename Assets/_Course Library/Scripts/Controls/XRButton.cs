@@ -22,7 +22,7 @@ public class XRButton : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseI
     private float yMin = 0.0f;
     private float yMax = 0.0f;
 
-    private UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor hoverInteractor = null;
+    private UnityEngine.XR.Interaction.Toolkit.Interactors.IXRHoverInteractor hoverInteractor = null;
 
     private float hoverHeight = 0.0f;
     private float startHeight = 0.0f;
@@ -44,7 +44,7 @@ public class XRButton : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseI
 
     private void StartPress(HoverEnterEventArgs eventArgs)
     {
-        hoverInteractor = eventArgs.interactorObject as UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor;
+        hoverInteractor = eventArgs.interactorObject;
         hoverHeight = GetLocalYPosition(hoverInteractor.transform.position);
         startHeight = buttonTransform.localPosition.y;
     }
@@ -72,7 +72,7 @@ public class XRButton : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseI
     {
         if(updatePhase == XRInteractionUpdateOrder.UpdatePhase.Dynamic)
         {
-            if (hoverInteractor)
+            if (isHovered)
             {
                 float height = FindButtonHeight();
                 ApplyHeight(height);
@@ -131,7 +131,7 @@ public class XRButton : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseI
         return buttonTransform.localPosition.y < threshold;
     }
 
-    public override bool IsSelectableBy(UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor interactor)
+    public override bool IsSelectableBy(UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor interactor)
     {
         return false;
     }

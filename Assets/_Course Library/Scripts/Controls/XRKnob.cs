@@ -28,7 +28,7 @@ public class XRKnob : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInt
     public float Value { get; private set; } = 0.0f;
     public float Angle { get; private set; } = 0.0f;
 
-    private UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor selectInteractor = null;
+    private UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor selectInteractor = null;
     private Quaternion selectRotation = Quaternion.identity;
 
     private void Start()
@@ -54,13 +54,9 @@ public class XRKnob : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInt
 
     private void StartTurn(SelectEnterEventArgs eventArgs)
     {
-        if (eventArgs.interactorObject is UnityEngine.XR.Interaction.Toolkit.Interactors.XRBaseInteractor baseInteractor)
-        {
-            selectInteractor = baseInteractor;
-            selectRotation = selectInteractor.transform.rotation;
-        }
+        selectInteractor = eventArgs.interactorObject;
+        selectRotation = selectInteractor.transform.rotation;
     }
-
 
     private void EndTurn(SelectExitEventArgs eventArgs)
     {
@@ -74,7 +70,7 @@ public class XRKnob : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInt
 
         if (updatePhase == XRInteractionUpdateOrder.UpdatePhase.Dynamic)
         {
-            if (selectInteractor)
+            if (isSelected)
             {
                 Angle = FindRotationValue();
                 float finalRotation = ApplyRotation(Angle);

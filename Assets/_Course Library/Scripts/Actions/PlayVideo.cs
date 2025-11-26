@@ -20,9 +20,6 @@ public class PlayVideo : MonoBehaviour
     private VideoPlayer videoPlayer = null;
     private MeshRenderer meshRenderer = null;
 
-    private readonly string shaderUsed = "Universal Render Pipeline/Unlit";
-
-    private Material offMaterial = null;
     private int index = 0;
 
     private void Awake()
@@ -32,8 +29,6 @@ public class PlayVideo : MonoBehaviour
 
         if (videoClips.Count > 0)
             videoPlayer.clip = videoClips[0];
-
-        offMaterial = meshRenderer.material;
     }
 
     private void OnEnable()
@@ -90,13 +85,13 @@ public class PlayVideo : MonoBehaviour
 
     public void Play()
     {
-        ApplyVideoMaterial(videoPlayer);
+        videoMaterial.color = Color.white;
         videoPlayer.Play();
     }
 
     public void Stop()
     {
-        meshRenderer.material = offMaterial;
+        videoMaterial.color = Color.black;
         videoPlayer.Stop();
     }
 
@@ -108,12 +103,10 @@ public class PlayVideo : MonoBehaviour
 
     public void TogglePlayPause()
     {
-        meshRenderer.material = videoMaterial;
-
         if (videoPlayer.isPlaying)
             videoPlayer.Pause();
         else
-            videoPlayer.Play();
+            Play();
     }
 
     public void SetPlay(bool value)
@@ -131,17 +124,11 @@ public class PlayVideo : MonoBehaviour
     private void ApplyVideoMaterial(VideoPlayer source)
     {
         meshRenderer.material = videoMaterial;
-        videoMaterial.color = Color.white; // allows video to be displayed - black material hides video
     }
 
     private void OnValidate()
     {
-        if (!videoMaterial)
-        {
-            videoMaterial = new Material(Shader.Find(shaderUsed));
-        }
-
-        if (TryGetComponent(out VideoPlayer videoPlayer))
-            videoPlayer.targetMaterialProperty = "_BaseMap";
-        }
+        var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        videoMaterial = mat;
     }
+}
