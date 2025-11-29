@@ -1,27 +1,34 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Video;
 
 public class VideoToggleMultiple : MonoBehaviour
 {
-    public VideoPlayer[] videoPlayers;  // Assign all your screens
-    private bool isPlaying = false;
+    public VideoPlayer[] videoPlayers;
+    private bool isOn = false;
 
     public void ToggleVideo()
     {
-        if (videoPlayers.Length == 0) return;
-
-        isPlaying = !isPlaying; // toggle state
+        isOn = !isOn;
 
         foreach (VideoPlayer vp in videoPlayers)
         {
             if (vp == null) continue;
 
-            if (isPlaying)
+            if (isOn)
+            {
+                vp.Stop();
+                vp.time = 0;
                 vp.Play();
+            }
             else
-                vp.Pause();
+            {
+                vp.Stop();
+            }
         }
+    }
 
-        Debug.Log("Videos " + (isPlaying ? "Playing" : "Paused"));
+    public bool IsVideoOn()
+    {
+        return isOn;
     }
 }
