@@ -1,34 +1,16 @@
 using UnityEngine;
-using System.Collections.Generic;
+using UnityEngine.XR.Interaction.Toolkit;
 
 public class VREraser : MonoBehaviour
 {
-    public float eraseRadius = 0.05f;
-
-    private void OnTriggerStay(Collider other)
+    public void Clear()
     {
-        LineRenderer line = other.GetComponent<LineRenderer>();
-        if (line == null) return;
+        GameObject parent = GameObject.Find("AllLines");
 
-        List<Vector3> newPoints = new List<Vector3>();
-
-        for (int i = 0; i < line.positionCount; i++)
+        if (parent != null)
         {
-            Vector3 p = line.GetPosition(i);
-            float dist = Vector3.Distance(p, transform.position);
-
-            if (dist > eraseRadius)
-                newPoints.Add(p);
+            foreach (Transform child in parent.transform)
+                GameObject.Destroy(child.gameObject);
         }
-
-        // if all points wiped, destroy
-        if (newPoints.Count < 2)
-        {
-            Destroy(line.gameObject);
-            return;
-        }
-
-        line.positionCount = newPoints.Count;
-        line.SetPositions(newPoints.ToArray());
     }
 }
