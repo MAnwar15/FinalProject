@@ -2,12 +2,12 @@ using UnityEngine;
 
 public class MetalRodSpark : MonoBehaviour
 {
-    public ParticleSystem sparkPrefab;
-    public AudioSource sparkAudio;
-
-    public float minImpactVelocity = 0.3f; // how hard rods must hit
+    public AudioClip sparkClip;   // the sound clip for metallic spark
+    public AudioSource audioSource; // the AudioSource that will play sparkClip
+    public float minImpactVelocity = 0.3f;
     public float igniteRadius = 1.2f;
     public float igniteChance = 0.9f;
+
 
     private Vector3 lastPos;
     private float velocity;
@@ -25,26 +25,26 @@ public class MetalRodSpark : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        // Must hit another rod
         if (!other.GetComponent<MetalRodSpark>()) return;
-
-        // Must be high enough velocity
         if (velocity < minImpactVelocity) return;
 
         Vector3 hitPos = transform.position;
 
-        // Spawn spark
-        if (sparkPrefab != null)
+        // Spawn spark using pool
+        if (SparkPool.Instance != null)
         {
-            var ps = Instantiate(sparkPrefab, hitPos, Quaternion.identity);
-            ps.Play();
-            Destroy(ps.gameObject, 0.6f);
+            SparkPool.Instance.GetSpark(hitPos);
         }
 
-        if (sparkAudio) sparkAudio.Play();
+        // Play spark sound
+        if (audioSource != null && sparkClip != null)
+        {
+            audioSource.PlayOneShot(sparkClip, 0.7f);
+        }
 
         TryIgniteNearbyFuel(hitPos);
     }
+
 
     void TryIgniteNearbyFuel(Vector3 pos)
     {
@@ -59,5 +59,28 @@ public class MetalRodSpark : MonoBehaviour
                 return;
             }
         }
+    }
+
+    // Returns true if any SimpleCampfire within radius has its flame particles playing or light enabled
+    bool IsActiveCampfireNearby(Vector3 pos, float radius)
+    {
+        Collider[] cols = Physics.OverlapSphere(pos, radius);
+        foreach (var c in cols)
+        {
+            var camp = c.GetComponentInParent<SimpleCampfire>();
+            if (camp != null)
+            {
+                // Check particle system or light state safely (null checks)
+                var flame = camp.flameParticles;
+                var light = camp.fireLight;
+
+                bool particlesOn = flame != null && flame.isPlaying;
+                bool lightOn = light != null && light.enabled;
+
+                if (particlesOn || lightOn)
+                    return true;
+            }
+        }
+        return false;
     }
 }

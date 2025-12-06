@@ -22,14 +22,19 @@ public class FuelSphere : MonoBehaviour
         }
 
         // find campfire
-        SimpleCampfire camp = FindNearestCampfire(5f);
+        SimpleCampfire camp = FindNearestCampfire(0.2f);   // smaller range
 
-        // ignite fuel NOW → ignite campfire LATER
         if (camp != null)
         {
-            camp.AddFuel(fuelSeconds);     // adds burn time but does NOT ignite flame yet
-            StartCoroutine(IgniteCampfireDelayed(camp));
+            float dist = Vector3.Distance(transform.position, camp.transform.position);
+
+            if (dist <= 3f)   // REAL distance check
+            {
+                camp.AddFuel(fuelSeconds);
+                StartCoroutine(IgniteCampfireDelayed(camp));
+            }
         }
+
 
         if (destroyOnIgnite)
             Destroy(gameObject);
