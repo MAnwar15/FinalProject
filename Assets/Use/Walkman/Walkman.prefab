@@ -1431,7 +1431,6 @@ GameObject:
   - component: {fileID: 2777775545713424361}
   - component: {fileID: 4925397591570527977}
   - component: {fileID: 4381457823218865250}
-  - component: {fileID: 1127001707441164919}
   - component: {fileID: 4417256676460650052}
   m_Layer: 0
   m_Name: TapeSlot
@@ -1484,18 +1483,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.11433071, y: 0.046023965, z: 0.08601689}
   m_Center: {x: 0.008477181, y: 0.009770334, z: 0.0075665712}
---- !u!114 &1127001707441164919
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9047932020516532377}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 95e5efbc50679524c8ec062724a887fa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AllowSocketGrab
 --- !u!114 &4417256676460650052
 MonoBehaviour:
   m_ObjectHideFlags: 0
