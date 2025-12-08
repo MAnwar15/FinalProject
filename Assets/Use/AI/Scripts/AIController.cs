@@ -1,12 +1,11 @@
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
-using System.Linq;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class AIController : MonoBehaviour
 {
-    public enum State { Patrol, Suspicious, Investigate, Alert, Chase, ReturnToPatrol }
+    public enum State { Patrol, Suspicious, Investigate, Chase, ReturnToPatrol }
     public State currentState = State.Patrol;
 
     [Header("References")]
@@ -28,13 +27,12 @@ public class AIController : MonoBehaviour
     public float detectionGain = 1.2f;
     public float detectionLose = 1.0f;
 
-    [Header("Hearing / Investigation")]
+    [Header("Investigation")]
     public float investigateStopDistance = 0.6f;
     public float investigateLookDuration = 3f;
     public float suspiciousLookDuration = 1.5f;
-    public float loudNoiseAlertThreshold = 0.9f; // intensity above this = immediate alert
 
-    // --- Added for new Suspicious logic ---
+    // --- Suspicious logic ---
     public float suspiciousDelay = 3f;
     private float suspiciousTimer = 0f;
 
@@ -72,7 +70,7 @@ public class AIController : MonoBehaviour
         {
             case State.Patrol:
                 PatrolUpdate();
-                // New logic: transition to Suspicious if player seen
+                // transition to Suspicious if player seen
                 if (CanSeePlayer())
                 {
                     currentState = State.Suspicious;
@@ -84,13 +82,21 @@ public class AIController : MonoBehaviour
                 SuspiciousUpdate();
                 break;
 
-            case State.Investigate: InvestigateUpdate(); break;
-            case State.Alert: AlertUpdate(); break;
-            case State.Chase: ChaseUpdate(); break;
+            case State.Investigate:
+                InvestigateUpdate();
+                break;
+
+            case State.Chase:
+                ChaseUpdate();
+                break;
+
+            case State.ReturnToPatrol:
+                ReturnToPatrol();
+                break;
         }
     }
 
-    // --- New Suspicious state logic ---
+    // Suspicious state logic
     void SuspiciousUpdate()
     {
         if (CanSeePlayer())
@@ -103,7 +109,7 @@ public class AIController : MonoBehaviour
         }
         else
         {
-            // Lost sight of player before timer finished
+            // Lost sight before timer finished -> back to patrol
             currentState = State.Patrol;
         }
     }
@@ -138,7 +144,7 @@ public class AIController : MonoBehaviour
         float angle = Vector3.Angle(eyes.forward, dir.normalized);
         if (angle > fieldOfView * 0.5f) return false;
 
-        // 1) RaycastAll up to player distance and inspect first non-self hit.
+        // RaycastAll up to player distance and inspect first non-self hit.
         RaycastHit[] hits = Physics.RaycastAll(eyes.position, dir.normalized, dist, ~0, QueryTriggerInteraction.Ignore);
         if (hits != null && hits.Length > 0)
         {
@@ -157,8 +163,8 @@ public class AIController : MonoBehaviour
             }
         }
 
-        // 2) If RaycastAll found nothing (or only self), check obstacles layers only:
-        //    if there is any obstacle between eyes and player on obstacleMask -> occluded
+        // If RaycastAll found nothing (or only self), check obstacles layers only:
+        // if there is any obstacle between eyes and player on obstacleMask -> occluded
         if (Physics.Raycast(eyes.position, dir.normalized, out RaycastHit obstacleHit, dist, obstacleMask, QueryTriggerInteraction.Ignore))
         {
             return false; // obstacle in the way
@@ -203,31 +209,7 @@ public class AIController : MonoBehaviour
     }
     #endregion
 
-    #region Investigate / Suspicious / Chase / Alert
-    public void OnNoiseHeard(Vector3 noisePos, float intensity, float radius)
-    {
-        if (currentState == State.Alert || currentState == State.Chase)
-            return;
-
-        investigatePosition = noisePos;
-
-        if (intensity >= loudNoiseAlertThreshold)
-        {
-            // go to the noise quickly and act suspicious (Alert state)
-            currentState = State.Alert;
-            agent.SetDestination(investigatePosition);
-        }
-        else
-        {
-            currentState = State.Investigate;
-            agent.SetDestination(investigatePosition);
-
-            if (investigateRoutine != null)
-                StopCoroutine(investigateRoutine);
-            investigateRoutine = StartCoroutine(InvestigateCoroutine());
-        }
-    }
-
+    #region Investigate / Chase
     IEnumerator InvestigateCoroutine()
     {
         float timeout = 10f;
@@ -252,21 +234,6 @@ public class AIController : MonoBehaviour
         ReturnToPatrol();
     }
 
-    // Shorter investigate behavior used by Alert (louder noise)
-    IEnumerator AlertInvestigateCoroutine()
-    {
-        float lookTimer = 0f;
-        while (lookTimer < suspiciousLookDuration)
-        {
-            LookAround();
-            lookTimer += Time.deltaTime;
-            yield return null;
-        }
-
-        // after short suspicious look, either continue investigating or return to patrol
-        ReturnToPatrol();
-    }
-
     void InvestigateUpdate()
     {
         // rotate to face the investigate position while moving
@@ -276,17 +243,6 @@ public class AIController : MonoBehaviour
         {
             Quaternion target = Quaternion.LookRotation(lookDir.normalized);
             transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * 4f);
-        }
-    }
-
-    void AlertUpdate()
-    {
-        // once reached alert destination, perform short suspicious look
-        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.1f)
-        {
-            if (investigateRoutine != null) StopCoroutine(investigateRoutine);
-            investigateRoutine = StartCoroutine(AlertInvestigateCoroutine());
-            currentState = State.Suspicious; // temporary state while looking
         }
     }
 
