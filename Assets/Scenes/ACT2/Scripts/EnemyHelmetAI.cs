@@ -1,14 +1,18 @@
 ﻿using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 
 public class EnemyHelmetAI : MonoBehaviour
 {
-    public Transform player;          // اللاعب
+    public Transform player;
     public float detectionRange = 10f;
 
-    public GameObject gameOverUI;     // شاشة الاتقفاش
-    public float restartDelay = 2f;   // تأخير إعادة السين
+    public GameObject gameOverUI;
+    public float restartDelay = 2f;
+
+    public List<AudioClip> gameOverSounds;  // ✔ قائمة الأصوات
+    private AudioSource audioSource;        // ✔ مصدر الصوت
 
     private PlayerStatus playerStatus;
     private NavMeshAgent agent;
@@ -16,21 +20,16 @@ public class EnemyHelmetAI : MonoBehaviour
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
+        audioSource = GetComponent<AudioSource>();
 
         if (player != null)
-        {
             playerStatus = player.GetComponent<PlayerStatus>();
-        }
 
-        // تحذيرات
-        if (agent == null)
-            Debug.LogWarning("NavMeshAgent missing on enemy!");
-        if (player == null)
-            Debug.LogWarning("Player not assigned in Inspector!");
-        if (playerStatus == null)
-            Debug.LogWarning("PlayerStatus missing on Player!");
         if (gameOverUI == null)
             Debug.LogWarning("GameOver UI not assigned!");
+
+        if (audioSource == null)
+            Debug.LogWarning("No AudioSource found on enemy!");
     }
 
     void Update()
@@ -42,35 +41,42 @@ public class EnemyHelmetAI : MonoBehaviour
         if (distance <= detectionRange)
         {
             if (!playerStatus.isWearingHelmet)
-            {
-                // اللاعب مكشوف → اجري وراه
-                agent.SetDestination(player.position);
-            }
+                agent.SetDestination(player.position);   // يجري
             else
-            {
-                // اللاعب لابس خوذة → وقف مكانك
-                agent.ResetPath();
-            }
+                agent.ResetPath();                       // يقف
         }
     }
 
     // ============================================================
-    //   لما العدو يلمس اللاعب → Game Over
+    //   Game Over لما يلمس اللاعب
     // ============================================================
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
-            // شغّل شاشة الاتقفاش
+            // UI
             if (gameOverUI != null)
                 gameOverUI.SetActive(true);
 
-            // وقف حركة العدو
+            // وقف العدو
             if (agent != null)
                 agent.ResetPath();
 
-            // إعادة تحميل السين بعد ثانيتين
+            // ✔ تشغيل كل الأصوات
+            PlayAllSounds();
+
+            // إعادة السين
             Invoke(nameof(RestartScene), restartDelay);
+        }
+    }
+
+    void PlayAllSounds()
+    {
+        if (audioSource == null || gameOverSounds.Count == 0) return;
+
+        foreach (var clip in gameOverSounds)
+        {
+            audioSource.PlayOneShot(clip);
         }
     }
 
