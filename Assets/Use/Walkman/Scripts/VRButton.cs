@@ -1,7 +1,6 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 [RequireComponent(typeof(XRBaseInteractable))]
@@ -13,19 +12,20 @@ public class VRButton : MonoBehaviour
     public float pressDepth = 0.012f;
     public float animSpeed = 12f;
 
-    private Vector3 restLocal;
-    private Vector3 pressedLocal;
-    private bool animating = false;
-    private AudioSource sfxSource;
-    private XRBaseInteractable interactable;
+    Vector3 restLocal;
+    Vector3 pressedLocal;
+    bool animating = false;
+    AudioSource sfxSource;
+
+    XRBaseInteractable interactable;
 
     void Awake()
     {
         restLocal = transform.localPosition;
         pressedLocal = restLocal + Vector3.down * pressDepth;
 
-        sfxSource = GetComponent<AudioSource>();
-        if (sfxSource == null && sfx != null)
+        // Prepare SFX source
+        if (sfx != null)
         {
             sfxSource = gameObject.AddComponent<AudioSource>();
             sfxSource.spatialBlend = 1f;
@@ -38,17 +38,18 @@ public class VRButton : MonoBehaviour
 
     public void Press()
     {
-        if (animating) return;
-        StartCoroutine(DoPress());
+        if (!animating)
+            StartCoroutine(AnimatePress());
     }
 
-    private IEnumerator DoPress()
+    IEnumerator AnimatePress()
     {
         animating = true;
-        if (sfx && sfxSource) sfxSource.PlayOneShot(sfx);
+
+        if (sfxSource && sfx) sfxSource.PlayOneShot(sfx);
         onPress?.Invoke();
 
-        // Animate press down
+        // press-in
         float t = 0f;
         while (t < 1f)
         {
@@ -57,9 +58,9 @@ public class VRButton : MonoBehaviour
             yield return null;
         }
 
-        yield return new WaitForSeconds(0.06f);
+        yield return new WaitForSeconds(0.05f);
 
-        // Animate release
+        // release
         t = 0f;
         while (t < 1f)
         {
