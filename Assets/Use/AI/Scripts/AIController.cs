@@ -3,6 +3,7 @@ using UnityEngine.AI;
 using System.Collections;
 
 [RequireComponent(typeof(NavMeshAgent))]
+[RequireComponent(typeof(AudioSource))]
 public class AIController : MonoBehaviour
 {
     public enum State { Patrol, Suspicious, Investigate, Chase, ReturnToPatrol }
@@ -10,72 +11,106 @@ public class AIController : MonoBehaviour
 
     [Header("References")]
     public Transform[] patrolPoints;
-    public Transform eyes; // child at eye height
-    public Transform player; // player's head (HMD) or a target transform
-    public LayerMask obstacleMask; // layers considered obstacles (set in inspector)
+    public Transform eyes;
+    public Transform player;
+    public LayerMask obstacleMask;
 
     [Header("Nav & Patrol")]
-    NavMeshAgent agent;
-    int patrolIndex = 0;
+    private NavMeshAgent agent;
+    private int patrolIndex = 0;
     public float patrolStopDelay = 1.0f;
+    private bool waitingAtPoint = false;
 
     [Header("Vision")]
     public float sightRange = 12f;
     [Range(0, 360)] public float fieldOfView = 110f;
-    public float detectionThreshold = 2.0f; // seconds to fully detect player
-    private float detectionProgress = 0f;
-    public float detectionGain = 1.2f;
-    public float detectionLose = 1.0f;
+    public float visionCheckRate = 0.25f;
+    private float visionCheckTimer = 0f;
+    private static RaycastHit[] raycastBuffer = new RaycastHit[1]; // avoids GC
 
-    [Header("Investigation")]
+    public float detectionThreshold = 2f;
+    public float detectionGain = 1.2f;
+    public float detectionLose = 1f;
+    private float detectionProgress = 0f;
+
+    [Header("Investigate")]
     public float investigateStopDistance = 0.6f;
     public float investigateLookDuration = 3f;
     public float suspiciousLookDuration = 1.5f;
-
-    // --- Suspicious logic ---
     public float suspiciousDelay = 3f;
     private float suspiciousTimer = 0f;
 
-    Vector3 investigatePosition;
-    Coroutine investigateRoutine;
-
-    Vector3 lastKnownPlayerPos;
-    float lostSightTimer = 0f;
+    [Header("Chase")]
     public float loseSightTime = 4f;
     public float maxChaseDistance = 25f;
+    private float lostSightTimer = 0f;
 
-    // cache colliders on self to ignore in raycasts
-    Collider[] selfColliders;
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip suspiciousClip;
+    public AudioClip investigateClip;
+    public AudioClip chaseClip;
+    private bool playedStateSound = false;
+
+    private Coroutine investigateRoutine;
+    private Vector3 lastKnownPlayerPos;
+    private Vector3 lastTargetPosition;
+    private State previousState;
+
+    private static int agentCount = 0;
+    private int agentIndex;
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
         if (eyes == null) eyes = transform;
-        agent.updateRotation = false; // we'll control rotation manually
+        agent.updateRotation = true; // agent handles rotation
+        agent.autoRepath = false; // manual destination updates
 
-        selfColliders = GetComponentsInChildren<Collider>();
+        audioSource ??= GetComponent<AudioSource>();
+        audioSource.spatialBlend = 1f;
+
+        agentIndex = agentCount++;
     }
 
     void Start()
     {
-        if (patrolPoints != null && patrolPoints.Length > 0)
+        if (patrolPoints.Length > 0)
             agent.SetDestination(patrolPoints[0].position);
+
+        previousState = currentState;
     }
 
     void Update()
     {
-        VisionCheck();
+        if (player == null) return;
 
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
+
+        // Distance-based LOD: skip expensive updates if far
+        if (distToPlayer > sightRange * 2f) return;
+
+        // Staggered vision checks
+        visionCheckTimer += Time.deltaTime;
+        if (visionCheckTimer >= visionCheckRate * (agentIndex + 1))
+        {
+            visionCheckTimer = 0f;
+            VisionCheck();
+        }
+
+        // State change detection
+        if (currentState != previousState)
+        {
+            OnStateChanged(currentState);
+            previousState = currentState;
+        }
+
+        // Main state machine
         switch (currentState)
         {
             case State.Patrol:
                 PatrolUpdate();
-                // transition to Suspicious if player seen
-                if (CanSeePlayer())
-                {
-                    currentState = State.Suspicious;
-                    suspiciousTimer = suspiciousDelay;
-                }
+                if (CanSeePlayer()) EnterSuspicious();
                 break;
 
             case State.Suspicious:
@@ -96,40 +131,83 @@ public class AIController : MonoBehaviour
         }
     }
 
-    // Suspicious state logic
+    // ---------------- STATE EVENTS ----------------
+    void OnStateChanged(State st)
+    {
+        playedStateSound = false;
+
+        switch (st)
+        {
+            case State.Suspicious: PlayOnce(suspiciousClip); break;
+            case State.Investigate: PlayOnce(investigateClip); break;
+            case State.Chase: PlayOnce(chaseClip); break;
+        }
+    }
+
+    void PlayOnce(AudioClip c)
+    {
+        if (playedStateSound || c == null) return;
+        audioSource.clip = c;
+        audioSource.Play();
+        playedStateSound = true;
+    }
+
+    // ---------------- PATROL ----------------
+    void PatrolUpdate()
+    {
+        ApplyAgentRotation();
+
+        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.1f && !waitingAtPoint)
+            StartCoroutine(AdvancePatrolPoint());
+    }
+
+    IEnumerator AdvancePatrolPoint()
+    {
+        waitingAtPoint = true;
+        yield return new WaitForSeconds(patrolStopDelay);
+
+        patrolIndex = (patrolIndex + 1) % patrolPoints.Length;
+        agent.SetDestination(patrolPoints[patrolIndex].position);
+
+        waitingAtPoint = false;
+    }
+
+    // ---------------- SUSPICIOUS ----------------
+    void EnterSuspicious()
+    {
+        currentState = State.Suspicious;
+        suspiciousTimer = suspiciousDelay;
+    }
+
     void SuspiciousUpdate()
     {
         if (CanSeePlayer())
         {
             suspiciousTimer -= Time.deltaTime;
             if (suspiciousTimer <= 0f)
-            {
                 currentState = State.Chase;
-            }
         }
         else
         {
-            // Lost sight before timer finished -> back to patrol
             currentState = State.Patrol;
         }
     }
 
-    #region Vision
+    // ---------------- VISION ----------------
     void VisionCheck()
     {
         if (player == null) return;
 
         if (CanSeePlayer())
         {
-            detectionProgress += detectionGain * Time.deltaTime;
-            detectionProgress = Mathf.Min(detectionProgress, detectionThreshold);
-
+            detectionProgress += detectionGain * visionCheckRate;
             if (detectionProgress >= detectionThreshold)
                 GoAlert();
         }
         else
         {
-            detectionProgress = Mathf.Max(0f, detectionProgress - detectionLose * Time.deltaTime);
+            detectionProgress -= detectionLose * visionCheckRate;
+            detectionProgress = Mathf.Max(0f, detectionProgress);
         }
     }
 
@@ -139,90 +217,30 @@ public class AIController : MonoBehaviour
 
         Vector3 dir = player.position - eyes.position;
         float dist = dir.magnitude;
+
         if (dist > sightRange) return false;
+        if (Vector3.Angle(eyes.forward, dir) > fieldOfView * 0.5f) return false;
 
-        float angle = Vector3.Angle(eyes.forward, dir.normalized);
-        if (angle > fieldOfView * 0.5f) return false;
-
-        // RaycastAll up to player distance and inspect first non-self hit.
-        RaycastHit[] hits = Physics.RaycastAll(eyes.position, dir.normalized, dist, ~0, QueryTriggerInteraction.Ignore);
-        if (hits != null && hits.Length > 0)
+        if (Physics.RaycastNonAlloc(eyes.position, dir.normalized, raycastBuffer, dist, obstacleMask) > 0)
         {
-            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-            foreach (var h in hits)
-            {
-                // ignore hits that belong to this AI
-                if (IsHitSelf(h.collider)) continue;
-
-                // if first non-self hit is part of the player -> visible
-                if (h.collider.transform == player || h.collider.transform.IsChildOf(player))
-                    return true;
-
-                // otherwise something else is blocking
-                return false;
-            }
+            if (raycastBuffer[0].transform != player) return false;
         }
 
-        // If RaycastAll found nothing (or only self), check obstacles layers only:
-        // if there is any obstacle between eyes and player on obstacleMask -> occluded
-        if (Physics.Raycast(eyes.position, dir.normalized, out RaycastHit obstacleHit, dist, obstacleMask, QueryTriggerInteraction.Ignore))
-        {
-            return false; // obstacle in the way
-        }
-
-        // No obstacle and no collider hit -> treat as visible (useful for HMD without collider)
         return true;
     }
 
-    bool IsHitSelf(Collider c)
-    {
-        if (c == null) return false;
-        foreach (var col in selfColliders)
-            if (col == c) return true;
-        return false;
-    }
-    #endregion
-
-    #region Patrol
-    bool waitingAtPoint = false;
-
-    void PatrolUpdate()
-    {
-        if (patrolPoints == null || patrolPoints.Length == 0) return;
-
-        // rotate toward movement direction for nicer visuals
-        ApplyAgentRotation();
-
-        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.1f && !waitingAtPoint)
-        {
-            StartCoroutine(AdvancePatrolPoint());
-        }
-    }
-
-    IEnumerator AdvancePatrolPoint()
-    {
-        waitingAtPoint = true;
-        yield return new WaitForSeconds(patrolStopDelay);
-        patrolIndex = (patrolIndex + 1) % patrolPoints.Length;
-        agent.SetDestination(patrolPoints[patrolIndex].position);
-        waitingAtPoint = false;
-    }
-    #endregion
-
-    #region Investigate / Chase
+    // ---------------- INVESTIGATE ----------------
     IEnumerator InvestigateCoroutine()
     {
-        float timeout = 10f;
         float timer = 0f;
+        float timeout = 10f;
 
-        // wait for arrival
         while ((agent.pathPending || agent.remainingDistance > investigateStopDistance) && timer < timeout)
         {
             timer += Time.deltaTime;
             yield return null;
         }
 
-        // look around
         float lookTimer = 0f;
         while (lookTimer < investigateLookDuration)
         {
@@ -231,60 +249,61 @@ public class AIController : MonoBehaviour
             yield return null;
         }
 
-        ReturnToPatrol();
+        currentState = State.ReturnToPatrol;
     }
 
     void InvestigateUpdate()
     {
-        // rotate to face the investigate position while moving
-        Vector3 lookDir = (investigatePosition - transform.position);
-        lookDir.y = 0;
-        if (lookDir.sqrMagnitude > 0.01f)
+        Vector3 toPoint = lastKnownPlayerPos - transform.position;
+        toPoint.y = 0f;
+
+        if (toPoint.sqrMagnitude > 0.01f && Time.frameCount % 3 == 0)
         {
-            Quaternion target = Quaternion.LookRotation(lookDir.normalized);
-            transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * 4f);
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(toPoint), Time.deltaTime * 4f);
         }
     }
 
     void LookAround()
     {
-        float turnSpeed = 60f;
-        transform.Rotate(0, Mathf.Sin(Time.time * 2f) * turnSpeed * Time.deltaTime, 0);
+        transform.Rotate(0, Mathf.Sin(Time.time * 2f) * 60f * Time.deltaTime, 0);
     }
 
+    // ---------------- CHASE ----------------
     void ChaseUpdate()
     {
         if (player == null) return;
 
-        float distance = Vector3.Distance(transform.position, player.position);
+        bool seesPlayer = CanSeePlayer();
+        float dist = Vector3.Distance(transform.position, player.position);
 
-        if (CanSeePlayer())
+        if (seesPlayer)
         {
             lastKnownPlayerPos = player.position;
             lostSightTimer = 0f;
-            agent.SetDestination(player.position);
 
-            // rotate to face player (smooth)
-            Vector3 dirToPlayer = player.position - transform.position;
-            dirToPlayer.y = 0;
-            if (dirToPlayer.sqrMagnitude > 0.01f)
+            if ((player.position - lastTargetPosition).sqrMagnitude > 0.5f)
             {
-                Quaternion rot = Quaternion.LookRotation(dirToPlayer.normalized);
-                transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 6f);
+                agent.SetDestination(player.position);
+                lastTargetPosition = player.position;
+            }
+
+            Vector3 dir = (player.position - transform.position);
+            dir.y = 0;
+            if (dir.sqrMagnitude > 0.01f && Time.frameCount % 2 == 0)
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * 6f);
             }
         }
         else
         {
             lostSightTimer += Time.deltaTime;
-
-            if (lostSightTimer > loseSightTime || distance > maxChaseDistance)
+            if (lostSightTimer >= loseSightTime || dist > maxChaseDistance)
             {
                 currentState = State.Investigate;
                 agent.SetDestination(lastKnownPlayerPos);
 
                 if (investigateRoutine != null) StopCoroutine(investigateRoutine);
                 investigateRoutine = StartCoroutine(InvestigateCoroutine());
-                return;
             }
         }
     }
@@ -292,58 +311,42 @@ public class AIController : MonoBehaviour
     void GoAlert()
     {
         currentState = State.Chase;
-        lostSightTimer = 0f;
-        if (player != null)
-        {
-            lastKnownPlayerPos = player.position;
-            agent.SetDestination(player.position);
-        }
+        lastKnownPlayerPos = player.position;
+        agent.SetDestination(player.position);
     }
 
+    // ---------------- RETURN ----------------
     void ReturnToPatrol()
     {
-        currentState = State.Patrol;
         detectionProgress = 0f;
-        if (patrolPoints != null && patrolPoints.Length > 0)
+        currentState = State.Patrol;
+
+        if (patrolPoints.Length > 0)
             agent.SetDestination(patrolPoints[patrolIndex].position);
     }
-    #endregion
 
-    #region Utilities
+    // ---------------- UTILITIES ----------------
     void ApplyAgentRotation()
     {
-        // rotate to face the agent's desired velocity so movement looks natural
-        Vector3 v = agent.desiredVelocity;
-        v.y = 0;
-        if (v.sqrMagnitude > 0.01f)
+        Vector3 vel = agent.desiredVelocity;
+        vel.y = 0;
+        if (vel.sqrMagnitude > 0.01f && Time.frameCount % 2 == 0)
         {
-            Quaternion target = Quaternion.LookRotation(v.normalized);
-            transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * 6f);
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(vel), Time.deltaTime * 6f);
         }
     }
-    #endregion
 
-    #region Debugging Gizmos
     void OnDrawGizmosSelected()
     {
-        if (eyes != null)
-        {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(eyes.position, sightRange);
+        if (eyes == null) return;
 
-            Vector3 forward = eyes.forward;
-            Quaternion leftRot = Quaternion.Euler(0, -fieldOfView * 0.5f, 0);
-            Quaternion rightRot = Quaternion.Euler(0, fieldOfView * 0.5f, 0);
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawLine(eyes.position, eyes.position + leftRot * forward * sightRange);
-            Gizmos.DrawLine(eyes.position, eyes.position + rightRot * forward * sightRange);
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(eyes.position, sightRange);
 
-            if (player != null)
-            {
-                Gizmos.color = CanSeePlayer() ? Color.green : Color.red;
-                Gizmos.DrawLine(eyes.position, player.position);
-            }
-        }
+        Gizmos.color = Color.cyan;
+        Quaternion left = Quaternion.Euler(0, -fieldOfView * 0.5f, 0);
+        Quaternion right = Quaternion.Euler(0, fieldOfView * 0.5f, 0);
+        Gizmos.DrawLine(eyes.position, eyes.position + left * eyes.forward * sightRange);
+        Gizmos.DrawLine(eyes.position, eyes.position + right * eyes.forward * sightRange);
     }
-    #endregion
 }
