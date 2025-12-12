@@ -1,18 +1,20 @@
 ﻿using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
-using System.Collections.Generic;
 
 public class EnemyHelmetAI : MonoBehaviour
 {
+    // 🔥 GameOver يحصل مرة واحدة فقط حتى لو 100 عدو لمسوا اللاعب
+    public static bool gameOverTriggered = false;
+
     public Transform player;
     public float detectionRange = 10f;
 
     public GameObject gameOverUI;
     public float restartDelay = 2f;
 
-    public List<AudioClip> gameOverSounds;  // ✔ قائمة الأصوات
-    private AudioSource audioSource;        // ✔ مصدر الصوت
+    public AudioClip[] gameOverSounds; // ✔ الأصوات
+    private AudioSource audioSource;
 
     private PlayerStatus playerStatus;
     private NavMeshAgent agent;
@@ -25,56 +27,59 @@ public class EnemyHelmetAI : MonoBehaviour
         if (player != null)
             playerStatus = player.GetComponent<PlayerStatus>();
 
-        if (gameOverUI == null)
-            Debug.LogWarning("GameOver UI not assigned!");
-
-        if (audioSource == null)
-            Debug.LogWarning("No AudioSource found on enemy!");
+        if (gameOverUI != null)
+            gameOverUI.SetActive(false); // يخليها مخفية في البداية
     }
 
     void Update()
     {
-        if (player == null || playerStatus == null || agent == null) return;
+        if (player == null || playerStatus == null || agent == null)
+            return;
 
         float distance = Vector3.Distance(transform.position, player.position);
 
+        // 👀 العدو يشوف اللاعب لو مش لابس الخوذة
         if (distance <= detectionRange)
         {
             if (!playerStatus.isWearingHelmet)
-                agent.SetDestination(player.position);   // يجري
+                agent.SetDestination(player.position);
             else
-                agent.ResetPath();                       // يقف
+                agent.ResetPath(); // لو لابس خوذة → يقف
         }
     }
 
-    // ============================================================
-    //   Game Over لما يلمس اللاعب
-    // ============================================================
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
-        {
-            // UI
-            if (gameOverUI != null)
-                gameOverUI.SetActive(true);
+        if (!other.CompareTag("Player"))
+            return;
 
-            // وقف العدو
-            if (agent != null)
-                agent.ResetPath();
+        // 🔥 يمنع تكرار الجيم أوفر مهما كان عدد الأعداء
+        if (gameOverTriggered)
+            return;
 
-            // ✔ تشغيل كل الأصوات
-            PlayAllSounds();
+        gameOverTriggered = true;
 
-            // إعادة السين
-            Invoke(nameof(RestartScene), restartDelay);
-        }
+        // 🔥 إظهار شاشة الجيم أوفر مرة واحدة
+        if (gameOverUI != null)
+            gameOverUI.SetActive(true);
+
+        // إيقاف حركة العدو
+        if (agent != null)
+            agent.ResetPath();
+
+        // تشغيل كل الأصوات مرة واحدة
+        PlayAllSounds();
+
+        // إعادة تحميل المشهد
+        Invoke(nameof(RestartScene), restartDelay);
     }
 
     void PlayAllSounds()
     {
-        if (audioSource == null || gameOverSounds.Count == 0) return;
+        if (audioSource == null || gameOverSounds.Length == 0)
+            return;
 
-        foreach (var clip in gameOverSounds)
+        foreach (AudioClip clip in gameOverSounds)
         {
             audioSource.PlayOneShot(clip);
         }
