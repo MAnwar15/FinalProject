@@ -15,6 +15,8 @@ public class AIController : MonoBehaviour
     public Transform player;
     public LayerMask obstacleMask;
 
+    [Header("Player Settings")]
+    public PlayerHelmet helmet; // reference to helmet script
     [Header("Nav & Patrol")]
     private NavMeshAgent agent;
     private int patrolIndex = 0;
@@ -177,7 +179,12 @@ public class AIController : MonoBehaviour
     {
         currentState = State.Suspicious;
         suspiciousTimer = suspiciousDelay;
+
+        //stop movement
+        agent.isStopped = true;
+        agent.ResetPath();
     }
+
 
     void SuspiciousUpdate()
     {
@@ -212,22 +219,28 @@ public class AIController : MonoBehaviour
     }
 
     bool CanSeePlayer()
+{
+    if (player == null || eyes == null) return false;
+
+    // --- NEW CHECK HERE ---
+    if (helmet != null && helmet.isInvisible)
+        return false;
+    // -----------------------
+
+    Vector3 dir = player.position - eyes.position;
+    float dist = dir.magnitude;
+
+    if (dist > sightRange) return false;
+    if (Vector3.Angle(eyes.forward, dir) > fieldOfView * 0.5f) return false;
+
+    if (Physics.RaycastNonAlloc(eyes.position, dir.normalized, raycastBuffer, dist, obstacleMask) > 0)
     {
-        if (player == null || eyes == null) return false;
-
-        Vector3 dir = player.position - eyes.position;
-        float dist = dir.magnitude;
-
-        if (dist > sightRange) return false;
-        if (Vector3.Angle(eyes.forward, dir) > fieldOfView * 0.5f) return false;
-
-        if (Physics.RaycastNonAlloc(eyes.position, dir.normalized, raycastBuffer, dist, obstacleMask) > 0)
-        {
-            if (raycastBuffer[0].transform != player) return false;
-        }
-
-        return true;
+        if (raycastBuffer[0].transform != player) return false;
     }
+
+    return true;
+}
+
 
     // ---------------- INVESTIGATE ----------------
     IEnumerator InvestigateCoroutine()
