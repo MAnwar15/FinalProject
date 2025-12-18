@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 using UnityEngine.SceneManagement;
@@ -106,16 +106,17 @@ public class AIController : MonoBehaviour
 
         float distToPlayer = Vector3.Distance(transform.position, player.position);
 
-        // Distance-based LOD: skip expensive updates if far
-        if (distToPlayer > sightRange * 2f) return;
-
-        // Staggered vision checks
-        visionCheckTimer += Time.deltaTime;
-        if (visionCheckTimer >= visionCheckRate * (agentIndex + 1))
+        // Staggered vision checks (ONLY vision, not patrol)
+        if (distToPlayer <= sightRange * 2f)
         {
-            visionCheckTimer = 0f;
-            VisionCheck();
+            visionCheckTimer += Time.deltaTime;
+            if (visionCheckTimer >= visionCheckRate * (agentIndex + 1))
+            {
+                visionCheckTimer = 0f;
+                VisionCheck();
+            }
         }
+
 
         // State change detection
         if (currentState != previousState)
@@ -174,11 +175,18 @@ public class AIController : MonoBehaviour
     // ---------------- PATROL ----------------
     void PatrolUpdate()
     {
+        agent.isStopped = false; // 🔥 مهم جدًا
         ApplyAgentRotation();
 
-        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.1f && !waitingAtPoint)
+        if (!agent.pathPending &&
+            agent.remainingDistance <= agent.stoppingDistance + 0.1f &&
+            !waitingAtPoint)
+        {
             StartCoroutine(AdvancePatrolPoint());
+        }
     }
+
+
 
     IEnumerator AdvancePatrolPoint()
     {
@@ -229,8 +237,11 @@ public class AIController : MonoBehaviour
         }
         else
         {
+            agent.isStopped = false;
+            agent.SetDestination(patrolPoints[patrolIndex].position);
             currentState = State.Patrol;
         }
+
     }
 
 
@@ -253,27 +264,27 @@ public class AIController : MonoBehaviour
     }
 
     bool CanSeePlayer()
-{
-    if (player == null || eyes == null) return false;
-
-    // --- NEW CHECK HERE ---
-    if (helmet != null && helmet.isInvisible)
-        return false;
-    // -----------------------
-
-    Vector3 dir = player.position - eyes.position;
-    float dist = dir.magnitude;
-
-    if (dist > sightRange) return false;
-    if (Vector3.Angle(eyes.forward, dir) > fieldOfView * 0.5f) return false;
-
-    if (Physics.RaycastNonAlloc(eyes.position, dir.normalized, raycastBuffer, dist, obstacleMask) > 0)
     {
-        if (raycastBuffer[0].transform != player) return false;
-    }
+        if (player == null || eyes == null) return false;
 
-    return true;
-}
+        // --- NEW CHECK HERE ---
+        if (helmet != null && helmet.isInvisible)
+            return false;
+        // -----------------------
+
+        Vector3 dir = player.position - eyes.position;
+        float dist = dir.magnitude;
+
+        if (dist > sightRange) return false;
+        if (Vector3.Angle(eyes.forward, dir) > fieldOfView * 0.5f) return false;
+
+        if (Physics.RaycastNonAlloc(eyes.position, dir.normalized, raycastBuffer, dist, obstacleMask) > 0)
+        {
+            if (raycastBuffer[0].transform != player) return false;
+        }
+
+        return true;
+    }
 
 
     // ---------------- INVESTIGATE ----------------
@@ -432,5 +443,11 @@ public class AIController : MonoBehaviour
         Gizmos.DrawLine(eyes.position, eyes.position + left * eyes.forward * sightRange);
         Gizmos.DrawLine(eyes.position, eyes.position + right * eyes.forward * sightRange);
     }
+    void EnterReturnToPatrol()
+    {
+        agent.isStopped = false;
+        agent.SetDestination(patrolPoints[patrolIndex].position);
+        currentState = State.Patrol;
+    }
+
 }
-    
