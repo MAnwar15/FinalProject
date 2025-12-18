@@ -1995,13 +1995,13 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 268435456
   helmet: {fileID: 0}
-  patrolStopDelay: 2
+  patrolStopDelay: 0
   catchDistance: 0.91
   gameOverCanvas: {fileID: 1848079281}
   gameOverMusic: {fileID: 8300000, guid: be383f08047cd12459bd22cf9fbebf82, type: 3}
   restartDelay: 11
   sightRange: 5.27
-  fieldOfView: 200
+  fieldOfView: 360
   visionCheckRate: 0.25
   detectionThreshold: 2
   detectionGain: 1.2
