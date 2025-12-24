@@ -12,13 +12,27 @@ public class WalkmanController : MonoBehaviour
     public AudioClip insertSfx;
     public bool autoPlayOnInsert = true;
 
+    [Header("LED")]
+    public Light statusLED;
+    public Color idleColor = Color.black;
+    public Color playingColor = Color.red;
+
     Tape currentTape;
     XRSocketInteractor socket;
 
     void Awake()
     {
-        if (!playerSource) playerSource = GetComponent<AudioSource>();
-        if (tapeSlot) socket = tapeSlot.GetComponent<XRSocketInteractor>();
+        if (!playerSource)
+            playerSource = GetComponent<AudioSource>();
+
+        if (tapeSlot)
+            socket = tapeSlot.GetComponent<XRSocketInteractor>();
+
+        if (statusLED)
+        {
+            statusLED.color = idleColor;
+            statusLED.enabled = false;
+        }
     }
 
     void OnEnable()
@@ -99,19 +113,31 @@ public class WalkmanController : MonoBehaviour
         playerSource.Stop();
         playerSource.clip = null;
 
+        SetLED(false);
+
         if (currentTape != null)
         {
             Rigidbody rb = currentTape.GetComponent<Rigidbody>();
             if (rb)
             {
-                rb.isKinematic = false;   // physics ON
-                rb.useGravity = true;     // gravity ON
+                rb.isKinematic = false;
+                rb.useGravity = true;
             }
 
             currentTape.transform.SetParent(null, true);
         }
 
         currentTape = null;
+    }
+
+    // ------------------------ LED ------------------------
+
+    void SetLED(bool playing)
+    {
+        if (!statusLED) return;
+
+        statusLED.enabled = playing;
+        statusLED.color = playing ? playingColor : idleColor;
     }
 
     // ------------------------ Playback ------------------------
@@ -121,26 +147,38 @@ public class WalkmanController : MonoBehaviour
         if (playerSource.clip == null) return;
         if (playerSource.isPlaying) return;
 
-        if (playerSource.time > 0f) playerSource.UnPause();
-        else playerSource.Play();
+        if (playerSource.time > 0f)
+            playerSource.UnPause();
+        else
+            playerSource.Play();
+
+        SetLED(true);
     }
 
     public void Pause()
     {
-        if (playerSource.isPlaying) playerSource.Pause();
+        if (playerSource.isPlaying)
+        {
+            playerSource.Pause();
+            SetLED(false);
+        }
     }
 
     public void PlayPauseToggle()
     {
         if (!playerSource.clip) return;
-        if (playerSource.isPlaying) Pause();
-        else Play();
+
+        if (playerSource.isPlaying)
+            Pause();
+        else
+            Play();
     }
 
     public void StopPlayback()
     {
         playerSource.Stop();
         playerSource.time = 0f;
+        SetLED(false);
     }
 
     public void OnPlayPausePressed() => PlayPauseToggle();
