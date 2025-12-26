@@ -1167,6 +1167,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2480000492414688292, guid: 5c81598c32c765a4fadea676893c7214, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.036
+      objectReference: {fileID: 0}
+    - target: {fileID: 2480000492414688292, guid: 5c81598c32c765a4fadea676893c7214, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.213
+      objectReference: {fileID: 0}
+    - target: {fileID: 2480000492414688292, guid: 5c81598c32c765a4fadea676893c7214, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.485
+      objectReference: {fileID: 0}
     - target: {fileID: 4293299265175849310, guid: 5c81598c32c765a4fadea676893c7214, type: 3}
       propertyPath: m_LocalPosition.x
       value: 6.4046035
@@ -1895,8 +1907,8 @@ GameObject:
   m_Component:
   - component: {fileID: 797518386}
   - component: {fileID: 797518385}
-  - component: {fileID: 797518384}
   - component: {fileID: 797518387}
+  - component: {fileID: 797518388}
   m_Layer: 0
   m_Name: Door
   m_TagString: Untagged
@@ -1904,21 +1916,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &797518384
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 797518383}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4faf7eac66dae3343b457a9bdb815ff8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CarHonk
-  hornAudio: {fileID: 0}
-  delayBeforeLoading: 2
-  loadingSceneName: ACT3
 --- !u!65 &797518385
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1949,7 +1946,7 @@ Transform:
   m_GameObject: {fileID: 797518383}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 91.612, y: 4.27, z: 9.032}
+  m_LocalPosition: {x: 91.361, y: 4.27, z: 8.88}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2027,6 +2024,19 @@ MonoBehaviour:
   m_StartingHoverFilters: []
   m_StartingSelectFilters: []
   m_StartingInteractionStrengthFilters: []
+--- !u!114 &797518388
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 797518383}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9941b3be71a47374284bfeae56db54a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DoorLoadScene
+  sceneName: ACT3
 --- !u!1001 &845492018
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2432,6 +2442,27 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!1 &998827847 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6974511545232225289, guid: cc1a8cd370bbc024db5ba7949c1bfef3, type: 3}
+  m_PrefabInstance: {fileID: 1746222618}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &998827849
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 998827847}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e704ddb27811a93469a919619135712b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WalkmanPocket
+  pocketAnchor: {fileID: 0}
+  grab: {fileID: 0}
+  rb: {fileID: 0}
+  isInPocket: 0
 --- !u!1 &1007656198
 GameObject:
   m_ObjectHideFlags: 0
@@ -3753,7 +3784,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6974511545232225289, guid: cc1a8cd370bbc024db5ba7949c1bfef3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 998827849}
   m_SourcePrefab: {fileID: 100100000, guid: cc1a8cd370bbc024db5ba7949c1bfef3, type: 3}
 --- !u!1001 &1767308502
 PrefabInstance:
